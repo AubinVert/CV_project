@@ -2,23 +2,23 @@ import open3d as o3d
 import numpy as np
 import glob
 
-# Liste des fichiers images
-color_files = sorted(glob.glob('raw/test/camera_color_image_raw/*.png'))
-depth_files = sorted(glob.glob('raw/test/camera_depth_image_raw/*.png'))
+# Datasets
+color_files = sorted(glob.glob('sync_color_image/*.png'))
+depth_files = sorted(glob.glob('sync_depth_image/*.png'))
 
 # Intrinsics
 fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
 intrinsics = o3d.camera.PinholeCameraIntrinsic(640, 400, fx, fy, cx, cy)
 
-# Paramètres ICP
+# ICP threshold
 threshold = 0.02
 
-
-# Fonction pour créer un nuage à partir d'une image RGB-D
-def create_pcd(color_file, depth_file):
+# Point cloud generation from a pair formed by a RGB and a depth image
+def create_point_cloud(color_file, depth_file):
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
         o3d.io.read_image(color_file),
         o3d.io.read_image(depth_file),
+        depth_scale=1000.0,
         convert_rgb_to_intensity=False
     )
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, intrinsics)
@@ -28,26 +28,31 @@ def create_pcd(color_file, depth_file):
     return pcd
 
 
-# Initialisation avec la première image
-merged_pcd = create_pcd(color_files[0], depth_files[0])
-trans_global = np.eye(4)
+# Point cloud initialization (first point cloud
+merged_pt_cloud = create_point_cloud(color_files[0], depth_files[0])
+global_transform = np.eye(4)
+previous_pt_cloud = merged_pt_cloud
 
-# Boucle sur les images suivantes
-for i in range(1, len(color_files)):
-    pcd_next = create_pcd(color_files[i], depth_files[i])
+# Loop on all the next images
+for i in range(1, 5):
+    # Next point cloud
+    new_pt_cloud = create_point_cloud(color_files[i], depth_files[i])
 
-    # ICP par rapport au nuage précédent (ou au nuage fusionné)
-    reg_icp = o3d.pipelines.registration.registration_icp(
-        pcd_next, merged_pcd, threshold, np.eye(4),
+    # ICP alignement with the merged dataset
+    icp_registration = o3d.pipelines.registration.registration_icp(
+        new_pt_cloud, previous_pt_cloud, threshold, np.eye(4),
         o3d.pipelines.registration.TransformationEstimationPointToPlane()
     )
 
-    # Appliquer la transformation globale
-    trans_global = reg_icp.transformation @ trans_global
-    pcd_next.transform(trans_global)
+    # Apply global transform on the new point cloud
+    global_transform = global_transform @ icp_registration.transformation
+    new_pt_cloud.transform(global_transform)
 
-    # Fusionner
-    merged_pcd += pcd_next
+    # Merge
+    merged_pt_cloud += new_pt_cloud
 
-# Affichage final
-o3d.visualization.draw_geometries([merged_pcd])
+    previous_pt_cloud = new_pt_cloud
+    print(f"Image {i+1}/{len(color_files)} done")
+
+# Final drawing
+o3d.visualization.draw_geometries([merged_pt_cloud])
