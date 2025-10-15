@@ -10,15 +10,15 @@ import open3d as o3d
 
 # -------------------- PARAMETERS ---------------------------
 INPUT_FILE   = "parseOut.ply"
-VOXEL_SIZE   = 0.005      # 5 mm downsample
+VOXEL_SIZE   = 0.001      # 5 mm downsample
 RED_S_MIN    = 0.10       # HSV saturation threshold
 RED_V_MIN    = 0.10       # HSV brightness threshold
-DBSCAN_EPS   = 0.4       # cluster radius (m)
+DBSCAN_EPS   = 0.02       # cluster radius (m)
 DBSCAN_MIN_P = 40         # min pts per cluster
 SOR_NEIGHB   = 5         # neighbors for StatisticalOutlierRemoval
 SOR_STD      = 1.5        # stddev threshold
 ROR_POINTS   = 5         # min neighbors for RadiusOutlierRemoval
-ROR_RADIUS   = 0.5        # radius for RadiusOutlierRemoval (m)
+ROR_RADIUS   = 0.6        # radius for RadiusOutlierRemoval (m)
 # ------------------------------------------------------------
 
 
