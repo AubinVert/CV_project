@@ -9,7 +9,7 @@ import numpy as np
 import open3d as o3d
 
 # -------------------- PARAMETERS ---------------------------
-INPUT_FILE   = "parseOut.ply"
+INPUT_FILE   = "extinguisher.ply"
 VOXEL_SIZE   = 0.001      # 5 mm downsample
 RED_S_MIN    = 0.10       # HSV saturation threshold
 RED_V_MIN    = 0.10       # HSV brightness threshold
@@ -20,6 +20,16 @@ SOR_STD      = 1.5        # stddev threshold
 ROR_POINTS   = 5         # min neighbors for RadiusOutlierRemoval
 ROR_RADIUS   = 0.6        # radius for RadiusOutlierRemoval (m)
 # ------------------------------------------------------------
+# INPUT_FILE   = "colmap-workspace/fused.ply"
+# VOXEL_SIZE   = 0.001      # 5 mm downsample
+# RED_S_MIN    = 0.10       # HSV saturation threshold
+# RED_V_MIN    = 0.10       # HSV brightness threshold
+# DBSCAN_EPS   = 0.2       # cluster radius (m)
+# DBSCAN_MIN_P = 100         # min pts per cluster
+# SOR_NEIGHB   = 100         # neighbors for StatisticalOutlierRemoval
+# SOR_STD      = 0.1        # stddev threshold
+# ROR_POINTS   = 70         # min neighbors for RadiusOutlierRemoval
+# ROR_RADIUS   = 0.1        # radius for RadiusOutlierRemoval (m)
 
 
 # ==========================================================
