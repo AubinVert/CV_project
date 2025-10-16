@@ -11,36 +11,37 @@ fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
 intrinsics = o3d.camera.PinholeCameraIntrinsic(640, 400, fx, fy, cx, cy)
 
 # ICP threshold
-threshold = 0.02
+threshold = 0.01
 
 # Point cloud generation from a pair formed by a RGB and a depth image
 def create_point_cloud(color_file, depth_file):
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
         o3d.io.read_image(color_file),
         o3d.io.read_image(depth_file),
-        depth_scale=1000.0,
         convert_rgb_to_intensity=False
     )
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, intrinsics)
+    #pcd = pcd.voxel_down_sample(voxel_size=0.05)
+
     pcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)
     )
     return pcd
 
 
-# Point cloud initialization (first point cloud
-merged_pt_cloud = create_point_cloud(color_files[0], depth_files[0])
+# Point cloud initialization (first point cloud)
+merged_pt_cloud = create_point_cloud(color_files[0],depth_files[0])
 global_transform = np.eye(4)
 previous_pt_cloud = merged_pt_cloud
 
 # Loop on all the next images
-for i in range(1, 5):
+for i in range(1, len(color_files)):
     # Next point cloud
     new_pt_cloud = create_point_cloud(color_files[i], depth_files[i])
 
     # ICP alignement with the merged dataset
     icp_registration = o3d.pipelines.registration.registration_icp(
-        new_pt_cloud, previous_pt_cloud, threshold, np.eye(4),
+        previous_pt_cloud, new_pt_cloud, threshold, np.eye(4),
         o3d.pipelines.registration.TransformationEstimationPointToPlane()
     )
 
@@ -50,7 +51,11 @@ for i in range(1, 5):
 
     # Merge
     merged_pt_cloud += new_pt_cloud
-
+    #merged_pt_cloud = merged_pt_cloud.voxel_down_sample(voxel_size=0.1)
+    merged_pt_cloud, ind = merged_pt_cloud.remove_statistical_outlier(
+        nb_neighbors=100,
+        std_ratio=2.0
+    )
     previous_pt_cloud = new_pt_cloud
     print(f"Image {i+1}/{len(color_files)} done")
 

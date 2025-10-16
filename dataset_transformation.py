@@ -1,10 +1,10 @@
 import os
 import shutil
 
-cam1_dir = "raw/test/camera_color_image_raw"
-cam2_dir = "raw/test/camera_depth_image_raw"
-out_cam1_dir = "sync_color_image"
-out_cam2_dir = "sync_depth_image"
+cam1_dir = "raw/test/camera_right_ir_image_raw"
+cam2_dir = "raw/test/camera_left_ir_image_raw"
+out_cam1_dir = "sync_right_ir"
+out_cam2_dir = "sync_left_ir"
 
 # New directories
 os.makedirs(out_cam1_dir, exist_ok=True)

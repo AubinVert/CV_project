@@ -1,48 +1,82 @@
+import pycolmap
+from pathlib import Path
 import open3d as o3d
-import numpy as np
 
-# Charger deux paires RGB-D
-rgbd1 = o3d.geometry.RGBDImage.create_from_color_and_depth(
-    o3d.io.read_image('raw/test/camera_color_image_raw/camera_color_image_1727164782247779444.png'),
-    o3d.io.read_image('raw/test/camera_depth_image_raw/camera_depth_image_1727164782243982104.png'),
-    convert_rgb_to_intensity=False
-)
+# =========================
+# CONFIGURATION
+# =========================
+IMG_DIR = Path("raw/test/camera_color_image_raw")  # dossier des images
+DB_PATH = Path("database.db")
+OUT_DIR = Path("sparse")
+OUT_DIR.mkdir(exist_ok=True, parents=True)
 
-rgbd2 = o3d.geometry.RGBDImage.create_from_color_and_depth(
-    o3d.io.read_image('raw/test/camera_color_image_raw/camera_color_image_1727164782274488837.png'),
-    o3d.io.read_image('raw/test/camera_depth_image_raw/camera_depth_image_1727164782668126160.png'),
-    convert_rgb_to_intensity=False
-)
-
-
-
-# Intrinsics
+# Paramètres caméra connus
 fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
-intrinsics = o3d.camera.PinholeCameraIntrinsic(640, 400, fx, fy, cx, cy)
+width, height = 640, 400
 
-# Convertir en point clouds
-pcd1 = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd1, intrinsics)
-pcd2 = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd2, intrinsics)
+# =========================
+# SUPPRESSION ANCIENNE BASE
+# =========================
+if DB_PATH.exists():
+    print(f">> Suppression ancienne base {DB_PATH}")
+    DB_PATH.unlink()
 
-# Calcul des normales pour les deux nuages
-pcd1.estimate_normals(
-    search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)
+# =========================
+# EXTRACTION FEATURES SIFT
+# PyCOLMAP crée automatiquement la base SQLite
+# =========================
+print(">> Extraction des features SIFT…")
+from pycolmap import SiftExtractionOptions, Device, CameraMode
+
+sift_opts = SiftExtractionOptions()
+sift_opts.use_gpu = True
+sift_opts.max_image_size = 3200
+sift_opts.peak_threshold = 0.02
+sift_opts.edge_threshold = 10
+
+pycolmap.extract_features(
+    database_path=str(DB_PATH),
+    image_path=str(IMG_DIR),
+    camera_model="PINHOLE",
+    camera_mode=CameraMode.AUTO,
+    sift_options=sift_opts,
+    device=Device.auto
 )
-pcd2.estimate_normals(
-    search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)
+
+# =========================
+# MATCHING EXHAUSTIF
+# =========================
+print(">> Matching exhaustif…")
+pycolmap.match_exhaustive(
+    database_path=str(DB_PATH)
 )
 
-# Alignement par ICP
-threshold = 0.02  # mètre
-trans_init = np.eye(4)
-reg_icp = o3d.pipelines.registration.registration_icp(
-    pcd2, pcd1, threshold, trans_init,
-    o3d.pipelines.registration.TransformationEstimationPointToPlane()
+# =========================
+# RECONSTRUCTION SFM
+# =========================
+print(">> Reconstruction SfM…")
+recons = pycolmap.incremental_mapping(
+    database_path=str(DB_PATH),
+    image_path=str(IMG_DIR),
+    output_path=str(OUT_DIR)
 )
 
-# Appliquer la transformation
-pcd2.transform(reg_icp.transformation)
+if len(recons) == 0:
+    raise RuntimeError("❌ Aucune reconstruction trouvée !")
 
-# Fusionner les deux nuages
-merged = pcd1 + pcd2
-o3d.visualization.draw_geometries([merged])
+rec = list(recons.values())[0]
+print(f">> Reconstruction terminée : {len(rec.images)} images, {len(rec.points3D)} points 3D.")
+
+# =========================
+# EXPORT PLY
+# =========================
+ply_path = OUT_DIR / "sparse_points.ply"
+rec.export_PLY(str(ply_path))
+print(f">> Nuage de points exporté : {ply_path}")
+
+# =========================
+# VISUALISATION OPEN3D
+# =========================
+pcd = o3d.io.read_point_cloud(str(ply_path))
+print(">> Affichage du nuage de points…")
+o3d.visualization.draw_geometries([pcd])
