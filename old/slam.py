@@ -7,7 +7,7 @@ from collections import deque
 
 # ---------------- CONFIG ----------------
 # Dossier contenant tes images
-dataset_dir = Path("raw/test/camera_color_image_raw")
+dataset_dir = Path("../raw/test/camera_color_image_raw")
 # Seuils
 MIN_MATCH_COUNT = 30
 KEYFRAME_MIN_INLIERS = 10
