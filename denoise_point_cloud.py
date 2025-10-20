@@ -9,7 +9,7 @@ import numpy as np
 import open3d as o3d
 
 # ==================== PARAMÈTRES ====================
-INPUT_FILE = "sparse/extinguisher_denoised.ply"  # Ton fichier d'entrée
+INPUT_FILE = "sparse/extinguisher_raw.ply"  # Ton fichier d'entrée
 OUTPUT_FILE = "sparse/extinguisher_denoised_final.ply"  # Fichier de sortie
 
 # Choix de la méthode (1, 2, 3, 4, ou "all" pour tout tester)

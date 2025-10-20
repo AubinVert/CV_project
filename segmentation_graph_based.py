@@ -13,7 +13,8 @@ import networkx as nx
 from scipy.spatial import KDTree
 
 # ==================== PARAMÈTRES ====================
-INPUT_FILE = "sparse/extinguisher_denoised.ply"
+INPUT_FILE = "sparse/extinguisher_denoised_final.ply"
+# INPUT_FILE = "dense/fused_colmap.ply"
 
 # Graph construction parameters
 GRAPH_RADIUS = 0.5          # Rayon de connexion entre points (3 cm)

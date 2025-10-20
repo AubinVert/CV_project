@@ -12,7 +12,7 @@ import open3d as o3d
 # Objectif: Volume cible = 60-65 litres (0.060-0.065 m³) ± 30%
 # =====================================================================
 
-INPUT_FILE = "sparse/extinguisher_denoised.ply"
+INPUT_FILE = "sparse/extinguisher_denoised_final.ply"
 
 # ----- 1. DOWNSAMPLING (Réduction de la densité de points) -----
 # Plus VOXEL_SIZE est grand → Moins de points, plus rapide, mais perd des détails
