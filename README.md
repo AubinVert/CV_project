@@ -5,7 +5,7 @@ This project implements a complete pipeline for 3D reconstruction and volume est
 
 **Pipeline Steps:**
 1. **Reconstruction** - COLMAP-based Structure-from-Motion (SfM) to generate 3D point clouds
-2. **Denoising** - Statistical and radius-based outlier removal (4 methods available)
+2. **Denoising** - Statistical and radius-based outlier removal (3 methods available)
 3. **Segmentation** - HSV color filtering and DBSCAN clustering to isolate the red extinguisher
 4. **Volume Estimation** - Convex hull and adjusted cylinder volume calculation
 
@@ -112,7 +112,7 @@ CAMERA_CY = 201.4      # Principal point Y
 
 **Denoising Methods:**
 ```python
-DENOISING_METHOD = 3   # 1=SOR, 2=ROR, 3=COMBO, 4=DBSCAN
+DENOISING_METHOD = 3   # 1=SOR, 2=ROR, 3=COMBO
 ```
 
 **HSV Color Filtering (Red Detection):**
@@ -206,7 +206,7 @@ CV_project/
 **Issue: Poor volume estimation**
 - Adjust `CYLINDER_RADIUS_FACTOR` in `config.py`
 - Tune segmentation parameters (DBSCAN eps, min_points)
-- Try different denoising methods (1-4)
+- Try different denoising methods (1-3)
 
 ---
 

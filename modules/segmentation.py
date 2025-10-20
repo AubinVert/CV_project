@@ -121,26 +121,28 @@ def run_segmentation(input_file=None, output_file=None, visualize=None):
     # Save raw segment
     o3d.io.write_point_cloud(str(config.SEGMENTED_CLOUD), pcd_ext)
     print(f"[Saved] {config.SEGMENTED_CLOUD}")
-    
+
+    # this is depreciated as it is processed in denoising part
     # ==========================================================
     # 4. Cleaning (Outlier removal)
     # ==========================================================
-    print("\n=== Step 4: Cleaning (SOR + ROR) ===")
-    pcd_clean, ind = pcd_ext.remove_statistical_outlier(
-        nb_neighbors=config.SEG_SOR_NEIGHB, 
-        std_ratio=config.SEG_SOR_STD
-    )
-    print(f"After SOR: {len(pcd_clean.points)} pts")
-    
-    pcd_clean, ind = pcd_clean.remove_radius_outlier(
-        nb_points=config.SEG_ROR_POINTS, 
-        radius=config.SEG_ROR_RADIUS
-    )
-    print(f"After ROR: {len(pcd_clean.points)} pts")
-    
-    o3d.io.write_point_cloud(str(output_file), pcd_clean)
-    print(f"[Saved] {output_file}")
-    
+    # print("\n=== Step 4: Cleaning (SOR + ROR) ===")
+    # pcd_clean, ind = pcd_ext.remove_statistical_outlier(
+    #     nb_neighbors=config.SEG_SOR_NEIGHB,
+    #     std_ratio=config.SEG_SOR_STD
+    # )
+    # print(f"After SOR: {len(pcd_clean.points)} pts")
+    #
+    # pcd_clean, ind = pcd_clean.remove_radius_outlier(
+    #     nb_points=config.SEG_ROR_POINTS,
+    #     radius=config.SEG_ROR_RADIUS
+    # )
+    # print(f"After ROR: {len(pcd_clean.points)} pts")
+    #
+    # o3d.io.write_point_cloud(str(output_file), pcd_clean)
+    # print(f"[Saved] {output_file}")
+
+    pcd_clean = pcd_ext
     # Final visualization
     if visualize:
         print("[Visualization] Segmented extinguisher")

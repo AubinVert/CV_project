@@ -74,9 +74,50 @@ Examples:
         choices=['reconstruction', 'denoising', 'segmentation', 'volume'],
         help='Run a specific module only'
     )
+
+    parser.add_argument(
+        '--view', '-v',
+        metavar='PATH',
+        help='Quick viewer: open a point cloud file (PLY/PCD). Example: -v path/to/file.ply'
+    )
     
     args = parser.parse_args()
     
+    # Quick viewer (takes precedence)
+    if args.view:
+        from pathlib import Path as _Path
+        import open3d as _o3d
+        import config as _config
+
+        p = _Path(args.view)
+        if not p.exists():
+            print(f"[ERROR] File not found: {p}")
+            return 2
+
+        print(f"[Viewer] Opening point cloud: {p}")
+        pc = _o3d.io.read_point_cloud(str(p))
+        if pc.is_empty():
+            print(f"[ERROR] Failed to read point cloud or file is empty: {p}")
+            return 3
+
+        if _config.VISUALIZE:
+            # Use original colors if present, otherwise fall back to orange
+            if pc.has_colors():
+                print("[Viewer] Displaying original point colors")
+            else:
+                pc.paint_uniform_color([1, 0.6, 0])
+
+            _o3d.visualization.draw_geometries(
+                [pc],
+                window_name=f"Viewer: {p.name}",
+                width=_config.WINDOW_WIDTH,
+                height=_config.WINDOW_HEIGHT,
+            )
+        else:
+            print("Visualization disabled in config.py (VISUALIZE=False)")
+
+        return 0
+
     # Execute according to choice
     if args.module == 'reconstruction':
         reconstruction.run_reconstruction()

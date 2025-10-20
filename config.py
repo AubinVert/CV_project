@@ -43,26 +43,21 @@ SIFT_MATCH_USE_GPU = True
 # =========================
 # 2. DENOISING
 # =========================
-DENOISING_METHOD = 3  # 1=SOR, 2=ROR, 3=COMBO, 4=DBSCAN
+DENOISING_METHOD = 3  # 1=SOR, 2=ROR, 3=COMBO
 
-# Méthode 1: Statistical Outlier Removal (SOR)
+# Method 1: Statistical Outlier Removal (SOR)
 SOR_NB_NEIGHBORS = 20
 SOR_STD_RATIO = 2.0
 
-# Méthode 2: Radius Outlier Removal (ROR)
+# Method 2: Radius Outlier Removal (ROR)
 ROR_NB_POINTS = 16
 ROR_RADIUS = 0.05
 
-# Méthode 3: Combinaison SOR + ROR
+# Method 3: Combined SOR + ROR
 COMBO_SOR_NEIGHBORS = 50
 COMBO_SOR_STD = 2.5
 COMBO_ROR_POINTS = 10
 COMBO_ROR_RADIUS = 0.3
-
-# Méthode 4: DBSCAN Clustering
-DBSCAN_EPS = 0.05
-DBSCAN_MIN_POINTS = 10
-DBSCAN_KEEP_TOP_N = 1
 
 # =========================
 # 3. SEGMENTATION
@@ -77,8 +72,8 @@ RED_S_MIN = 0.10
 RED_V_MIN = 0.10
 
 # DBSCAN clustering
-SEG_DBSCAN_EPS = 0.02
-SEG_DBSCAN_MIN_P = 40
+SEG_DBSCAN_EPS = 1
+SEG_DBSCAN_MIN_P = 5
 
 # Cleaning (SOR + ROR)
 SEG_SOR_NEIGHB = 5
