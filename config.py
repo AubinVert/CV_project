@@ -8,15 +8,15 @@ from pathlib import Path
 # PATHS
 # =========================
 IMG_DIR = Path("raw/test/camera_color_image_raw")
-DB_PATH = Path("database.db")
+DB_PATH = Path("colmap/database.db")
 SPARSE_DIR = Path("sparse")
 
-# Point clouds (générés progressivement)
-RAW_CLOUD = SPARSE_DIR / "extinguisher_raw.ply"
-DENOISED_CLOUD = SPARSE_DIR / "extinguisher_denoised.ply"
-DENOISED_FINAL_CLOUD = SPARSE_DIR / "extinguisher_denoised_final.ply"
-SEGMENTED_CLOUD = "extinguisher_segment.ply"
-CLEAN_CLOUD = "extinguisher_clean.ply"
+# Point clouds
+RAW_CLOUD = SPARSE_DIR / "scene/extinguisher_raw.ply"
+DENOISED_CLOUD = SPARSE_DIR / "scene/extinguisher_denoised.ply"
+DENOISED_FINAL_CLOUD = SPARSE_DIR / "scene/extinguisher_denoised_final.ply"
+SEGMENTED_CLOUD = SPARSE_DIR / "scene/extinguisher_segment.ply"
+CLEAN_CLOUD = SPARSE_DIR / "extinguisher/extinguisher_clean.ply"
 
 # =========================
 # 1. RECONSTRUCTION (COLMAP)
@@ -90,11 +90,11 @@ SEG_ROR_RADIUS = 0.3
 # 4. VOLUME ESTIMATION
 # =========================
 # Cylinder adjustment
-CYLINDER_RADIUS_FACTOR = 0.7
+CYLINDER_RADIUS_FACTOR = 0.9
 CYLINDER_HEIGHT_MARGIN_TOP = 0.05
 CYLINDER_HEIGHT_MARGIN_BOTTOM = 0.05
 
-# Target volume (Litres)
+# Target volume **
 TARGET_MIN = 60 * 0.7  # 42 L
 TARGET_MAX = 65 * 1.3  # 84.5 L
 

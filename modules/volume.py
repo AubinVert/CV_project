@@ -63,6 +63,40 @@ def run_volume_estimation(input_file=None, visualize=None):
     print(f"Radius (raw): {radius_raw:.3f} m")
     print(f"Radius (adjusted x{config.CYLINDER_RADIUS_FACTOR}): {radius_adjusted:.3f} m")
     
+    # ==========================================================
+    # PCA: Find principal axis for proper alignment
+    # ==========================================================
+    print("\n=== PCA Alignment ===")
+    centroid = pts.mean(axis=0)
+    pts_centered = pts - centroid
+    
+    # Compute covariance matrix and eigenvectors
+    cov_matrix = np.cov(pts_centered.T)
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+    
+    # Sort by eigenvalues (largest = principal axis)
+    idx_sorted = np.argsort(eigenvalues)[::-1]
+    eigenvectors = eigenvectors[:, idx_sorted]
+    principal_axis = eigenvectors[:, 0]  # Main axis (height)
+    
+    # Project points onto principal axis to get height
+    projections = np.dot(pts_centered, principal_axis)
+    height_pca = projections.max() - projections.min()
+    height_adjusted = height_pca - config.CYLINDER_HEIGHT_MARGIN_TOP - config.CYLINDER_HEIGHT_MARGIN_BOTTOM
+    
+    # Calculate radius from points perpendicular to axis
+    # Project to plane perpendicular to principal axis
+    pts_perp = pts_centered - np.outer(projections, principal_axis)
+    distances = np.linalg.norm(pts_perp, axis=1)
+    radius_raw = np.percentile(distances, 95)  # 95th percentile for robustness
+    radius_adjusted = radius_raw * config.CYLINDER_RADIUS_FACTOR
+    
+    print(f"Principal axis: {principal_axis}")
+    print(f"Height (PCA): {height_pca:.3f} m")
+    print(f"Height (adjusted): {height_adjusted:.3f} m")
+    print(f"Radius (95th percentile): {radius_raw:.3f} m")
+    print(f"Radius (adjusted x{config.CYLINDER_RADIUS_FACTOR}): {radius_adjusted:.3f} m")
+    
     # --- METHOD 1: Convex Hull ---
     hull, _ = pcd_clean.compute_convex_hull()
     hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
@@ -74,9 +108,10 @@ def run_volume_estimation(input_file=None, visualize=None):
         verts, tris = np.asarray(hull.vertices), np.asarray(hull.triangles)
         vol_hull = abs(np.sum([np.dot(verts[t[0]], np.cross(verts[t[1]], verts[t[2]])) for t in tris])) / 6.0
     
-    # --- METHOD 2: Adjusted Cylinder ---
+    # --- METHOD 2: Adjusted Cylinder (PCA-aligned) ---
     vol_cylinder_adjusted = np.pi * (radius_adjusted ** 2) * height_adjusted
     
+    # Convert to liters
     volume_liters_hull = vol_hull * 1000
     volume_liters_cylinder = vol_cylinder_adjusted * 1000
     
@@ -85,24 +120,22 @@ def run_volume_estimation(input_file=None, visualize=None):
     print(f"{'='*70}")
     print(f"1. Convex Hull:")
     print(f"   → {vol_hull:.4f} m³ = {volume_liters_hull:.1f} L")
-    print(f"\n2. Adjusted Cylinder (RECOMMENDED):")
+    print(f"\n2. Adjusted Cylinder (PCA-aligned, RECOMMENDED):")
     print(f"   Radius: {radius_raw:.3f} m × {config.CYLINDER_RADIUS_FACTOR} = {radius_adjusted:.3f} m")
-    print(f"   Height: {height_raw:.3f} m - margins = {height_adjusted:.3f} m")
+    print(f"   Height: {height_pca:.3f} m - margins = {height_adjusted:.3f} m")
     print(f"   → {vol_cylinder_adjusted:.4f} m³ = {volume_liters_cylinder:.1f} L")
     print(f"\n[TARGET] Goal: 60-65 L ± 30% → [{config.TARGET_MIN:.1f} - {config.TARGET_MAX:.1f}] L")
     
     status_hull = "✓" if config.TARGET_MIN <= volume_liters_hull <= config.TARGET_MAX else "✗"
     status_cyl = "✓" if config.TARGET_MIN <= volume_liters_cylinder <= config.TARGET_MAX else "✗"
     
-    print(f"\n[STATUS] Hull: {status_hull} | Adjusted Cylinder: {status_cyl}")
+    print(f"\n[STATUS] Hull: {status_hull} | Cylinder: {status_cyl}")
     print(f"{'='*70}")
     
     # ==========================================================
-    # Create cylinder for visualization
+    # Create PCA-aligned cylinder for visualization
     # ==========================================================
-    center = (mins + maxs) / 2.0
-    axis_idx = np.argmax(dims)
-    
+    # Create cylinder along Z-axis
     cylinder_adjusted = o3d.geometry.TriangleMesh.create_cylinder(
         radius=radius_adjusted,
         height=height_adjusted,
@@ -110,16 +143,33 @@ def run_volume_estimation(input_file=None, visualize=None):
         split=4
     )
     
-    # Rotate according to main axis
-    if axis_idx == 0:
-        R = o3d.geometry.get_rotation_matrix_from_axis_angle([0, np.pi/2, 0])
-    elif axis_idx == 1:
-        R = o3d.geometry.get_rotation_matrix_from_axis_angle([np.pi/2, 0, 0])
+    # Create rotation matrix to align Z-axis with principal axis
+    z_axis = np.array([0, 0, 1])
+    
+    # Rotation axis = cross product
+    rotation_axis = np.cross(z_axis, principal_axis)
+    rotation_axis_norm = np.linalg.norm(rotation_axis)
+    
+    if rotation_axis_norm > 1e-6:  # Not parallel
+        rotation_axis = rotation_axis / rotation_axis_norm
+        # Rotation angle = arccos of dot product
+        rotation_angle = np.arccos(np.clip(np.dot(z_axis, principal_axis), -1.0, 1.0))
+        # Rodrigues' rotation formula
+        K = np.array([
+            [0, -rotation_axis[2], rotation_axis[1]],
+            [rotation_axis[2], 0, -rotation_axis[0]],
+            [-rotation_axis[1], rotation_axis[0], 0]
+        ])
+        R = np.eye(3) + np.sin(rotation_angle) * K + (1 - np.cos(rotation_angle)) * np.dot(K, K)
     else:
-        R = np.eye(3)
+        # Already aligned or opposite
+        if np.dot(z_axis, principal_axis) < 0:
+            R = -np.eye(3)  # Flip
+        else:
+            R = np.eye(3)
     
     cylinder_adjusted.rotate(R, center=[0, 0, 0])
-    cylinder_adjusted.translate(center)
+    cylinder_adjusted.translate(centroid)
     cylinder_adjusted.paint_uniform_color([0, 1, 1])
     
     cylinder_adjusted_ls = o3d.geometry.LineSet.create_from_triangle_mesh(cylinder_adjusted)
@@ -131,14 +181,14 @@ def run_volume_estimation(input_file=None, visualize=None):
     if visualize:
         print("\n=== Visualization ===")
         print("[LEGEND]")
-        print("  🔴 Red   : Segmented extinguisher")
-        print("  🟢 Green : Convex Hull")
-        print("  🩵 Cyan  : Adjusted Cylinder")
+        print("  Red   : Segmented extinguisher")
+        print("  Green : Convex Hull")
+        print("  Cyan  : PCA-aligned Cylinder")
         
         pcd_clean.paint_uniform_color([1, 0, 0])
         o3d.visualization.draw_geometries(
             [pcd_clean, hull_ls, cylinder_adjusted_ls],
-            window_name=f"Step 4/4: Volume Estimation - {volume_liters_cylinder:.1f}L (Target: 60-65L)",
+            window_name=f"Step 4/4: Volume Estimation - Hull:{volume_liters_hull:.1f}L | Cyl:{volume_liters_cylinder:.1f}L",
             width=config.WINDOW_WIDTH,
             height=config.WINDOW_HEIGHT
         )

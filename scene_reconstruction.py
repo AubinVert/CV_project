@@ -3,8 +3,8 @@ import numpy as np
 import glob
 
 # Datasets
-color_files = sorted(glob.glob('sync_color_image/*.png'))
-depth_files = sorted(glob.glob('sync_depth_image/*.png'))
+color_files = sorted(glob.glob('raw/test/sync_color_image/*.png'))
+depth_files = sorted(glob.glob('raw/test/sync_depth_image/*.png'))
 
 # Intrinsics
 fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
