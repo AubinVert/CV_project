@@ -1,5 +1,5 @@
 # Fire Extinguisher 3D Reconstruction and Volume Estimation Pipeline
-# Python 3.8+ required
+# Tested on python 3.12
 
 # Core dependencies
 numpy>=1.21.0
