@@ -8,75 +8,75 @@
 import numpy as np
 import open3d as o3d
 
-# ==================== PARAMÈTRES DE SEGMENTATION ====================
-# Objectif: Volume cible = 60-65 litres (0.060-0.065 m³) ± 30%
+# ==================== SEGMENTATION PARAMETERS ====================
+# Goal: Target volume = 60-65 liters (0.060-0.065 m³) ± 30%
 # =====================================================================
 
-INPUT_FILE = "sparse/old/extinguisher_denoised_final.ply"
+INPUT_FILE = "../sparse/old/extinguisher_denoised_final.ply"
 
-# ----- 1. DOWNSAMPLING (Réduction de la densité de points) -----
-# Plus VOXEL_SIZE est grand → Moins de points, plus rapide, mais perd des détails
-# Recommandé: 0.001-0.005 m (1-5 mm) pour équilibrer précision et performance
-VOXEL_SIZE = 0.001  # 2 mm - bon compromis pour garder la forme sans trop de bruit
+# ----- 1. DOWNSAMPLING (Point Density Reduction) -----
+# Larger VOXEL_SIZE → Fewer points, faster, but loses detail
+# Recommended: 0.001-0.005 m (1-5 mm) to balance precision and performance
+VOXEL_SIZE = 0.001  # 2 mm - good compromise to keep shape without too much noise
 
-# ----- 2. FILTRAGE COULEUR HSV (Détection du rouge) -----
-# H (Hue/Teinte): Rouge = [0-0.03] ou [0.97-1.0] sur une échelle [0,1]
-# S (Saturation): Plus c'est haut → Plus la couleur est "pure" (pas gris/blanc)
-#   - Trop bas (ex: 0.05): Inclut du rose pâle, du gris → BRUIT
-#   - Trop haut (ex: 0.50): Exclut du rouge délavé → PERD L'EXTINCTEUR
-# V (Value/Luminosité): Élimine les zones trop sombres/noires
-#   - Trop bas (ex: 0.05): Garde des ombres noires → BRUIT
-#   - Trop haut (ex: 0.40): Perd les zones peu éclairées → INCOMPLET
+# ----- 2. HSV COLOR FILTERING (Red Detection) -----
+# H (Hue): Red = [0-0.03] or [0.97-1.0] on [0,1] scale
+# S (Saturation): Higher → More "pure" color (not gray/white)
+#   - Too low (e.g. 0.05): Includes pale pink, gray → NOISE
+#   - Too high (e.g. 0.50): Excludes faded red → LOSES EXTINGUISHER
+# V (Value/Brightness): Eliminates too dark/black areas
+#   - Too low (e.g. 0.05): Keeps black shadows → NOISE
+#   - Too high (e.g. 0.40): Loses poorly lit areas → INCOMPLETE
 
-# Range de Hue pour le rouge (sur échelle [0,1])
-# Rouge = basses valeurs (proche de 0) OU hautes valeurs (proche de 1)
-RED_H_LOW_MAX = 0.05   # Hue max pour le rouge "bas" (0 à 0.03 = rouge-orange)
-RED_H_HIGH_MIN = 0.96  # Hue min pour le rouge "haut" (0.97 à 1.0 = rouge-violet)
+# Hue range for red (on [0,1] scale)
+# Red = low values (close to 0) OR high values (close to 1)
+RED_H_LOW_MAX = 0.05   # Max hue for "low" red (0 to 0.03 = red-orange)
+RED_H_HIGH_MIN = 0.96  # Min hue for "high" red (0.97 to 1.0 = red-violet)
 
-RED_S_MIN = 0.10  # Saturation minimale - élimine le bruit gris/blanc
-RED_V_MIN = 0.10  # Luminosité minimale - élimine les ombres trop sombres
+RED_S_MIN = 0.10  # Minimum saturation - eliminates gray/white noise
+RED_V_MIN = 0.10  # Minimum brightness - eliminates too dark shadows
 
-# ----- 3. CLUSTERING DBSCAN (Regroupement des points rouges) -----
-# DBSCAN_EPS: Rayon de recherche (m) pour connecter des points ensemble
-#   - Trop petit (ex: 0.01): Fragmente l'extincteur en plusieurs clusters
-#   - Trop grand (ex: 0.10): Regroupe le bruit avec l'extincteur
-# DBSCAN_MIN_P: Nombre minimum de points pour former un cluster valide
-#   - Trop bas (ex: 10): Crée beaucoup de petits clusters parasites
-#   - Trop haut (ex: 500): Risque de rejeter l'extincteur si peu de points
-DBSCAN_EPS = 0.02    # 2.5 cm - distance max entre points voisins
-DBSCAN_MIN_P = 40     # 50 points minimum par cluster - élimine petits bruits
+# ----- 3. DBSCAN CLUSTERING (Grouping Red Points) -----
+# DBSCAN_EPS: Search radius (m) to connect points together
+#   - Too small (e.g. 0.01): Fragments extinguisher into multiple clusters
+#   - Too large (e.g. 0.10): Groups noise with extinguisher
+# DBSCAN_MIN_P: Minimum points to form a valid cluster
+#   - Too low (e.g. 10): Creates many small parasitic clusters
+#   - Too high (e.g. 500): May reject extinguisher if few points
+DBSCAN_EPS = 0.02    # 2.5 cm - max distance between neighboring points
+DBSCAN_MIN_P = 40     # 50 points minimum per cluster - eliminates small noise
 
-# ----- 4. NETTOYAGE - Statistical Outlier Removal (SOR) -----
-# Principe: Calcule la distance moyenne de chaque point à ses voisins
-# Si un point est trop loin de ses voisins → c'est du bruit isolé
-# SOR_NEIGHB: Nombre de voisins à analyser autour de chaque point
-#   - Trop bas (ex: 5): Détection locale, peut manquer du bruit global
-#   - Trop haut (ex: 100): Plus robuste mais plus lent
-# SOR_STD: Seuil en écart-type pour rejeter un point
-#   - Trop bas (ex: 0.5): TRÈS agressif, supprime beaucoup de points
-#   - Trop haut (ex: 3.0): Garde trop de bruit
-SOR_NEIGHB = 5       # Analyse 20 voisins - bon équilibre
-SOR_STD = 1.5         # Rejette si > 1 écart-type - assez strict
+# ----- 4. CLEANING - Statistical Outlier Removal (SOR) -----
+# Principle: Calculates average distance of each point to its neighbors
+# If a point is too far from its neighbors → it's isolated noise
+# SOR_NEIGHB: Number of neighbors to analyze around each point
+#   - Too low (e.g. 5): Local detection, may miss global noise
+#   - Too high (e.g. 100): More robust but slower
+# SOR_STD: Standard deviation threshold to reject a point
+#   - Too low (e.g. 0.5): VERY aggressive, removes many points
+#   - Too high (e.g. 3.0): Keeps too much noise
+SOR_NEIGHB = 5       # Analyze 20 neighbors - good balance
+SOR_STD = 1.5         # Reject if > 1 std dev - quite strict
 
-# ----- 5. NETTOYAGE - Radius Outlier Removal (ROR) -----
-# Principe: Dans un rayon donné, un point doit avoir X voisins minimum
-# Sinon c'est un point isolé (bruit) → supprimé
-# ROR_RADIUS: Rayon de recherche (m) autour de chaque point
-#   - Trop petit (ex: 0.01): Ne détecte que le bruit très proche
-#   - Trop grand (ex: 0.20): Trop permissif, garde du bruit lointain
-# ROR_POINTS: Nombre minimum de voisins requis dans ce rayon
-#   - Trop bas (ex: 2): Garde presque tout
-#   - Trop haut (ex: 50): Peut supprimer des bords de l'extincteur
-ROR_RADIUS = 0.3      # 1.5 cm - rayon de voisinage local
-ROR_POINTS = 10        # 8 voisins minimum - élimine points isolés
+# ----- 5. CLEANING - Radius Outlier Removal (ROR) -----
+# Principle: Within a given radius, a point must have X minimum neighbors
+# Otherwise it's an isolated point (noise) → removed
+# ROR_RADIUS: Search radius (m) around each point
+#   - Too small (e.g. 0.01): Only detects very close noise
+#   - Too large (e.g. 0.20): Too permissive, keeps distant noise
+# ROR_POINTS: Minimum required neighbors in this radius
+#   - Too low (e.g. 2): Keeps almost everything
+#   - Too high (e.g. 50): May remove extinguisher edges
+ROR_RADIUS = 0.3      # 1.5 cm - local neighborhood radius
+ROR_POINTS = 10        # 8 neighbors minimum - eliminates isolated points
 
-# ----- 6. PARAMÈTRES DU CYLINDRE AJUSTÉ -----
-# Contrôle fin du cylindre pour mieux correspondre à la forme réelle
-CYLINDER_RADIUS_FACTOR = 0.7   # Facteur appliqué au rayon (0.5-1.0)
-CYLINDER_HEIGHT_MARGIN_TOP = 0.05    # Marge à retirer en haut (m)
-CYLINDER_HEIGHT_MARGIN_BOTTOM = 0.05  # Marge à retirer en bas (m)
-# Exemple: Un extincteur réel a souvent une poignée en haut et un pied en bas
-# Ces marges permettent d'exclure ces parties du calcul de volume
+# ----- 6. FITTED CYLINDER PARAMETERS -----
+# Fine control of cylinder to better match real shape
+CYLINDER_RADIUS_FACTOR = 0.7   # Factor applied to radius (0.5-1.0)
+CYLINDER_HEIGHT_MARGIN_TOP = 0.05    # Margin to remove at top (m)
+CYLINDER_HEIGHT_MARGIN_BOTTOM = 0.05  # Margin to remove at bottom (m)
+# Example: A real extinguisher often has a handle on top and a base at bottom
+# These margins allow excluding these parts from volume calculation
 
 # ======================================================================
 # INPUT_FILE   = "colmap-workspace/fused.ply"
@@ -124,7 +124,7 @@ def keep_red_points(colors_hsv):
 # ==========================================================
 # 1. Load point cloud
 # ==========================================================
-print("\n=== Step 1 : Loading point cloud ===")
+print("\n=== Step 1: Loading point cloud ===")
 pcd = o3d.io.read_point_cloud(INPUT_FILE)
 if pcd.is_empty():
     raise RuntimeError("Failed to load parseOut.ply or it's empty.")
@@ -138,7 +138,7 @@ print(f"[INFO] After downsampling: {len(pcd.points)} points.")
 # ==========================================================
 # 2. Color-based segmentation (Red detection)
 # ==========================================================
-print("\n=== Step 2 : HSV color filtering ===")
+print("\n=== Step 2: HSV color filtering ===")
 if not pcd.has_colors():
     print("[WARN] No colors in file — skipping HSV filtering.")
     red_mask = np.ones(len(pcd.points), dtype=bool)
@@ -160,7 +160,7 @@ if pcd_red.is_empty():
 # ==========================================================
 # 3. Clustering (keep largest red cluster)
 # ==========================================================
-print("\n=== Step 3 : DBSCAN clustering ===")
+print("\n=== Step 3: DBSCAN clustering ===")
 labels = np.array(pcd_red.cluster_dbscan(eps=DBSCAN_EPS, min_points=DBSCAN_MIN_P))
 if labels.size == 0 or np.all(labels < 0):
     labels = np.array(pcd_red.cluster_dbscan(eps=0.03, min_points=20))
@@ -186,7 +186,7 @@ print("[OK] Saved 'extinguisher_segment.ply'.")
 # ==========================================================
 # 4. Cleaning (Outlier removal)
 # ==========================================================
-print("\n=== Step 4 : Cleaning (SOR + ROR) ===")
+print("\n=== Step 4: Cleaning (SOR + ROR) ===")
 pcd_clean, ind = pcd_ext.remove_statistical_outlier(nb_neighbors=SOR_NEIGHB, std_ratio=SOR_STD)
 print(f"[INFO] After SOR: {len(pcd_clean.points)} pts kept.")
 
@@ -195,34 +195,34 @@ print(f"[INFO] After ROR: {len(pcd_clean.points)} pts kept.")
 o3d.io.write_point_cloud("extinguisher_clean.ply", pcd_clean)
 
 # ==========================================================
-# 5. Volume estimation (Convex Hull + Cylindre)
+# 5. Volume estimation (Convex Hull + Cylinder)
 # ==========================================================
-print("\n=== Step 5 : Volume estimation ===")
+print("\n=== Step 5: Volume estimation ===")
 pts = np.asarray(pcd_clean.points)
 mins, maxs = pts.min(axis=0), pts.max(axis=0)
 dims = maxs - mins
 print(f"[DEBUG] Bounding Box Dimensions (X,Y,Z) = {dims}")
 
-# Déterminer hauteur et diamètre
+# Determine height and diameter
 height_raw = np.max(dims)
-# Appliquer les marges haut/bas
+# Apply top/bottom margins
 height_adjusted = height_raw - CYLINDER_HEIGHT_MARGIN_TOP - CYLINDER_HEIGHT_MARGIN_BOTTOM
 
-# Pour le diamètre: moyenne des 2 plus petites dimensions
+# For diameter: average of 2 smallest dimensions
 sorted_dims = np.sort(dims)
-diameter_raw = np.mean(sorted_dims[:2])  # Moyenne des 2 plus petites dimensions
+diameter_raw = np.mean(sorted_dims[:2])  # Average of 2 smallest dimensions
 radius_raw = diameter_raw / 2.0
 
-# Appliquer le facteur de rayon
+# Apply radius factor
 radius_adjusted = radius_raw * CYLINDER_RADIUS_FACTOR
 
-print(f"[DEBUG] Height (brute) = {height_raw:.3f} m")
-print(f"[DEBUG] Height (ajustée avec marges) = {height_adjusted:.3f} m")
-print(f"[DEBUG] Diameter (brut) = {diameter_raw:.3f} m")
-print(f"[DEBUG] Radius (brut) = {radius_raw:.3f} m")
-print(f"[DEBUG] Radius (ajusté x{CYLINDER_RADIUS_FACTOR}) = {radius_adjusted:.3f} m")
+print(f"[DEBUG] Height (raw) = {height_raw:.3f} m")
+print(f"[DEBUG] Height (adjusted with margins) = {height_adjusted:.3f} m")
+print(f"[DEBUG] Diameter (raw) = {diameter_raw:.3f} m")
+print(f"[DEBUG] Radius (raw) = {radius_raw:.3f} m")
+print(f"[DEBUG] Radius (adjusted x{CYLINDER_RADIUS_FACTOR}) = {radius_adjusted:.3f} m")
 
-# --- MÉTHODE 1: Convex Hull ---
+# --- METHOD 1: Convex Hull ---
 hull, _ = pcd_clean.compute_convex_hull()
 hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
 hull_ls.paint_uniform_color([0, 1, 0])
@@ -233,46 +233,46 @@ except AttributeError:
     verts, tris = np.asarray(hull.vertices), np.asarray(hull.triangles)
     vol_hull = abs(np.sum([np.dot(verts[t[0]], np.cross(verts[t[1]], verts[t[2]])) for t in tris])) / 6.0
 
-# --- MÉTHODE 2: Cylindre ajusté avec marges ---
-# Volume cylindre = π * r² * h
+# --- METHOD 2: Adjusted cylinder with margins ---
+# Cylinder volume = π * r² * h
 vol_cylinder_adjusted = np.pi * (radius_adjusted ** 2) * height_adjusted
 
 volume_liters_hull = vol_hull * 1000
 volume_liters_cylinder = vol_cylinder_adjusted * 1000
 
-target_min, target_max = 60 * 0.7, 65 * 1.3  # ±30% de marge
+target_min, target_max = 60 * 0.7, 65 * 1.3  # ±30% margin
 
 print(f"\n{'='*70}")
-print(f"[RÉSULTATS - 2 MÉTHODES]")
+print(f"[RESULTS - 2 METHODS]")
 print(f"{'='*70}")
-print(f"1. Convex Hull (sous-estime souvent):")
+print(f"1. Convex Hull (often underestimates):")
 print(f"   → {vol_hull:.4f} m³ = {volume_liters_hull:.1f} L")
-print(f"\n2. Cylindre ajusté (RECOMMANDÉ):")
-print(f"   Rayon: {radius_raw:.3f} m × {CYLINDER_RADIUS_FACTOR} = {radius_adjusted:.3f} m")
-print(f"   Hauteur: {height_raw:.3f} m - {CYLINDER_HEIGHT_MARGIN_TOP:.3f} m (haut) - {CYLINDER_HEIGHT_MARGIN_BOTTOM:.3f} m (bas) = {height_adjusted:.3f} m")
+print(f"\n2. Adjusted Cylinder (RECOMMENDED):")
+print(f"   Radius: {radius_raw:.3f} m × {CYLINDER_RADIUS_FACTOR} = {radius_adjusted:.3f} m")
+print(f"   Height: {height_raw:.3f} m - {CYLINDER_HEIGHT_MARGIN_TOP:.3f} m (top) - {CYLINDER_HEIGHT_MARGIN_BOTTOM:.3f} m (bottom) = {height_adjusted:.3f} m")
 print(f"   → {vol_cylinder_adjusted:.4f} m³ = {volume_liters_cylinder:.1f} L")
-print(f"\n[TARGET] Objectif: 60-65 L ± 30% → [{target_min:.1f} - {target_max:.1f}] L")
+print(f"\n[TARGET] Goal: 60-65 L ± 30% → [{target_min:.1f} - {target_max:.1f}] L")
 
-# Vérifier quelle méthode est dans la cible
+# Check which method is within target
 status_hull = "✓" if target_min <= volume_liters_hull <= target_max else "✗"
 status_cyl = "✓" if target_min <= volume_liters_cylinder <= target_max else "✗"
 
-print(f"\n[STATUS] Hull: {status_hull} | Cylindre ajusté: {status_cyl}")
+print(f"\n[STATUS] Hull: {status_hull} | Adjusted Cylinder: {status_cyl}")
 print(f"{'='*70}")
 
 # ==========================================================
-# 5b. Création des meshes cylindriques pour visualisation
+# 5b. Creating cylinder meshes for visualization
 # ==========================================================
-print("\n=== Step 5b : Creating cylinder meshes ===")
+print("\n=== Step 5b: Creating cylinder meshes ===")
 
-# Calcul du centre de la bounding box pour positionner les cylindres
+# Calculate bounding box center to position cylinders
 center = (mins + maxs) / 2.0
 
-# Déterminer l'axe principal (celui avec la plus grande dimension = hauteur)
+# Determine main axis (one with largest dimension = height)
 axis_idx = np.argmax(dims)
-print(f"[DEBUG] Axe principal (hauteur) = axe {axis_idx} (0=X, 1=Y, 2=Z)")
+print(f"[DEBUG] Main axis (height) = axis {axis_idx} (0=X, 1=Y, 2=Z)")
 
-# --- Cylindre ajusté (en cyan) ---
+# --- Adjusted cylinder (in cyan) ---
 cylinder_adjusted = o3d.geometry.TriangleMesh.create_cylinder(
     radius=radius_adjusted,
     height=height_adjusted,
@@ -280,43 +280,43 @@ cylinder_adjusted = o3d.geometry.TriangleMesh.create_cylinder(
     split=4
 )
 
-# Rotation pour aligner le cylindre avec l'axe principal
-# Par défaut, Open3D crée les cylindres selon l'axe Z
-# On doit donc pivoter pour aligner avec l'axe de plus grande dimension
-if axis_idx == 0:  # Axe X
-    # Rotation de 90° autour de Y
+# Rotation to align cylinder with main axis
+# By default, Open3D creates cylinders along Z axis
+# So we must rotate to align with the axis of largest dimension
+if axis_idx == 0:  # X axis
+    # 90° rotation around Y
     R = o3d.geometry.get_rotation_matrix_from_axis_angle([0, np.pi/2, 0])
-elif axis_idx == 1:  # Axe Y
-    # Rotation de 90° autour de X
+elif axis_idx == 1:  # Y axis
+    # 90° rotation around X
     R = o3d.geometry.get_rotation_matrix_from_axis_angle([np.pi/2, 0, 0])
-else:  # Axe Z (axis_idx == 2)
-    # Pas de rotation nécessaire
+else:  # Z axis (axis_idx == 2)
+    # No rotation needed
     R = np.eye(3)
 
-# Appliquer rotation et translation
+# Apply rotation and translation
 cylinder_adjusted.rotate(R, center=[0, 0, 0])
 cylinder_adjusted.translate(center)
 cylinder_adjusted.paint_uniform_color([0, 1, 1])  # Cyan
 
-# Conversion en wireframe pour meilleure visualisation
+# Convert to wireframe for better visualization
 cylinder_adjusted_ls = o3d.geometry.LineSet.create_from_triangle_mesh(cylinder_adjusted)
 cylinder_adjusted_ls.paint_uniform_color([0, 1, 1])  # Cyan
 
-print(f"[OK] Cylindre ajusté créé et aligné (cyan)")
+print(f"[OK] Adjusted cylinder created and aligned (cyan)")
 
 # ==========================================================
 # 6. Visualization
 # ==========================================================
-print("\n=== Step 6 : Visualization ===")
-print("[LÉGENDE]")
-print("  🔴 Rouge  : Points segmentés de l'extincteur")
-print("  🟢 Vert   : Convex Hull")
-print("  🩵 Cyan   : Cylindre ajusté (avec marges et facteur de rayon)")
+print("\n=== Step 6: Visualization ===")
+print("[LEGEND]")
+print("  🔴 Red  : Segmented extinguisher points")
+print("  🟢 Green   : Convex Hull")
+print("  🩵 Cyan   : Adjusted Cylinder (with margins and radius factor)")
 
 try:
     o3d.visualization.draw_geometries(
         [pcd_clean, hull_ls, cylinder_adjusted_ls],
-        window_name="Extinguisher - Hull vs Cylindre Ajusté",
+        window_name="Extinguisher - Hull vs Adjusted Cylinder",
         width=1280,
         height=720
     )

@@ -13,7 +13,7 @@ intrinsics = o3d.camera.PinholeCameraIntrinsic(640, 400, fx, fy, cx, cy)
 # ICP threshold
 threshold = 0.01
 
-# Point cloud generation from a pair formed by a RGB and a depth image
+# Generate point cloud from RGB and depth image pair
 def create_point_cloud(color_file, depth_file):
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
         o3d.io.read_image(color_file),
@@ -29,27 +29,27 @@ def create_point_cloud(color_file, depth_file):
     return pcd
 
 
-# Point cloud initialization (first point cloud)
-merged_pt_cloud = create_point_cloud(color_files[0],depth_files[0])
+# Initialize point cloud (first point cloud)
+merged_pt_cloud = create_point_cloud(color_files[0], depth_files[0])
 global_transform = np.eye(4)
 previous_pt_cloud = merged_pt_cloud
 
-# Loop on all the next images
+# Loop through all remaining images
 for i in range(1, len(color_files)):
-    # Next point cloud
+    # Create next point cloud
     new_pt_cloud = create_point_cloud(color_files[i], depth_files[i])
 
-    # ICP alignement with the merged dataset
+    # ICP alignment with merged dataset
     icp_registration = o3d.pipelines.registration.registration_icp(
         previous_pt_cloud, new_pt_cloud, threshold, np.eye(4),
         o3d.pipelines.registration.TransformationEstimationPointToPlane()
     )
 
-    # Apply global transform on the new point cloud
+    # Apply global transform to new point cloud
     global_transform = global_transform @ icp_registration.transformation
     new_pt_cloud.transform(global_transform)
 
-    # Merge
+    # Merge point clouds
     merged_pt_cloud += new_pt_cloud
     #merged_pt_cloud = merged_pt_cloud.voxel_down_sample(voxel_size=0.1)
     merged_pt_cloud, ind = merged_pt_cloud.remove_statistical_outlier(
@@ -57,7 +57,7 @@ for i in range(1, len(color_files)):
         std_ratio=2.0
     )
     previous_pt_cloud = new_pt_cloud
-    print(f"Image {i+1}/{len(color_files)} done")
+    print(f"Image {i+1}/{len(color_files)} processed")
 
-# Final drawing
+# Final visualization
 o3d.visualization.draw_geometries([merged_pt_cloud])
