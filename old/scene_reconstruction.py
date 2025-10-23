@@ -7,7 +7,7 @@ color_files = sorted(glob.glob('raw/test/sync_color_image/*.png'))
 depth_files = sorted(glob.glob('raw/test/sync_depth_image/*.png'))
 
 # Intrinsics
-fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
+fx, fy, cx, cy = 306.000244140625, 306.1123352050781, 318.4753112792969, 201.36949157714844
 intrinsics = o3d.camera.PinholeCameraIntrinsic(640, 400, fx, fy, cx, cy)
 
 # ICP threshold
