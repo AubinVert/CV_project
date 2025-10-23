@@ -8,7 +8,7 @@ from tqdm import tqdm
 # CONFIG
 # =========================
 IMG_DIR = Path("../raw/test/camera_left_ir_image_raw")
-fx, fy, cx, cy = 306.0, 306.1, 318.5, 201.4
+fx, fy, cx, cy = 306.000244140625, 306.1123352050781, 318.4753112792969, 201.36949157714844
 K = np.array([[fx, 0, cx],
               [0, fy, cy],
               [0, 0, 1]])
