@@ -21,7 +21,7 @@ CLEAN_CLOUD = SPARSE_DIR / "extinguisher/extinguisher_clean.ply"
 # =========================
 # 1. RECONSTRUCTION (COLMAP)
 # =========================
-MATCHING_METHOD = "EXHAUSTIVE"  # SEQUENTIAL / EXHAUSTIVE
+MATCHING_METHOD = "SEQUENTIAL"  # SEQUENTIAL / EXHAUSTIVE
 
 # Camera intrinsics
 CAMERA_FX = 306.0
