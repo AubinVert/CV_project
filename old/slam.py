@@ -192,11 +192,11 @@ def slam_based_algorithm(imgs, paths, K):
             )
 
             # Match descriptors from previous and current keyframe
-            matches_kf = match_descriptors(keyframes[-2].descriptor, current_keyframe.descriptor)
+            matches_kf = match_descriptors(keyframes[-2].descriptors, current_keyframe.descriptors)
             if len(matches_kf) >= 8:
                 # Get point from both image
-                pts1 = np.float32([keyframes[-2].key_point[m.queryIdx].pt for m in matches_kf]) # m.queryIdx = ids from matched point in previous image
-                pts2 = np.float32([current_keyframe.key_point[m.trainIdx].pt for m in matches_kf]) # m.trainIdx = ids from matched point current image
+                pts1 = np.float32([keyframes[-2].key_points[m.queryIdx].pt for m in matches_kf]) # m.queryIdx = ids from matched point in previous image
+                pts2 = np.float32([current_keyframe.key_points[m.trainIdx].pt for m in matches_kf]) # m.trainIdx = ids from matched point current image
 
                 # Compute Rotation and translation matrix for each image
                 # All matrices are inverted because cv2 triangulation function need to have them going from the image
