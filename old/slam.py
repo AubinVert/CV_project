@@ -105,8 +105,8 @@ class Keyframe:
         self.pose = pose
         self.id = id
 
-# ---------------- MONOCULAR SLAM ----------------
-def monocular_slam(imgs, paths, K):
+# ---------------- SLAM BASED ALGORITHM ----------------
+def slam_based_algorithm(imgs, paths, K):
     n = len(imgs)
     keyframes = []
     all_points = []
@@ -115,83 +115,130 @@ def monocular_slam(imgs, paths, K):
     pose_id = 0
 
     # First keyframe
-    kp0, des0 = detect_and_compute(imgs[0])
-    kf0 = Keyframe(imgs[0], paths[0], kp0, des0, rt_to_extrinsic(np.eye(3), np.zeros((3,1))), pose_id)
+    key_point0, descriptor0 = detect_and_compute(imgs[0])
+    kf0 = Keyframe(imgs[0], paths[0], key_point0, descriptor0, rt_to_extrinsic(np.eye(3), np.zeros((3,1))), pose_id)
     keyframes.append(kf0)
     pose_graph.nodes.append(o3d.pipelines.registration.PoseGraphNode(kf0.pose))
     pose_id += 1
-    prev_kp, prev_des, prev_img = kp0, des0, imgs[0]
+    prev_key_point, prev_descriptor, prev_img = key_point0, descriptor0, imgs[0]
 
     recent_kf_indices = deque([0], maxlen=MAX_RECENT_KF)
 
+    # For each image :
+    # - Compute sift feature matching
+    # - Match descriptors with those from previous image
+    # - Estimate relative pose
+    # - Compute absolute pose
+    # - Determine if current image can be seen as a keyframe (for further calculation)
+    # - If key frame :
+    #       - Add frame to key frames list
+    #       - Add pose to the pose graph
+    #       - Compute triangulation
     for i in range(1, n):
         img = imgs[i]
-        kp, des = detect_and_compute(img)
-        matches = match_descriptors(prev_des, des)
+
+        # Sift feature detection
+        key_point, descriptor = detect_and_compute(img)
+
+        # Feature matching
+        matches = match_descriptors(prev_descriptor, descriptor)
         print(f"[{i}] Matches = {len(matches)}")
         if len(matches) < MIN_MATCH_COUNT:
-            prev_kp, prev_des, prev_img = kp, des, img
+            prev_key_point, prev_descriptor, prev_img = key_point, descriptor, img
             continue
-        est = estimate_relative_pose(prev_kp, kp, matches, K)
+
+        # Relative pose estimation
+        est = estimate_relative_pose(prev_key_point, key_point, matches, K)
         if est is None:
-            prev_kp, prev_des, prev_img = kp, des, img
+            prev_key_point, prev_descriptor, prev_img = key_point, descriptor, img
             continue
-        R_rel, t_rel, in1, in2, mask_pose = est
+
+        # Compute absolute pose
+        relative_R, relative_t, inliers1, inliers2, mask_pose = est
         prev_R = keyframes[-1].pose[:3,:3]
         prev_t = keyframes[-1].pose[:3,3].reshape(3,1)
-        new_R = prev_R @ R_rel
-        new_t = prev_t + prev_R @ t_rel
+        new_R = prev_R @ relative_R
+        new_t = prev_t + prev_R @ relative_t
         curr_pose = rt_to_extrinsic(new_R, new_t)
-        num_inliers = in1.shape[0]
+
+        # Compute some coefficient to know if image is a key frame
+        num_inliers = inliers1.shape[0]
         print(f"[{i}] Inliers = {num_inliers}")
-        baseline = np.linalg.norm(t_rel)
+        baseline = np.linalg.norm(relative_t)
         print(f"[{i}] baseline = {baseline}")
-        rot_angle = np.arccos(np.clip((np.trace(R_rel) - 1) / 2, -1, 1))
+        rot_angle = np.arccos(np.clip((np.trace(relative_R) - 1) / 2, -1, 1))
         print(f"Rotation angle = {rot_angle}")
+
+        # Determine if current image can be seen as a keyframe (for further calculation)
         is_keyframe = (num_inliers > KEYFRAME_MIN_INLIERS) and (baseline > KEYFRAME_MIN_TRANSLATION or rot_angle > KEYFRAME_MIN_ROTATION)
+
+        # If current frame is a key frame
         if is_keyframe:
-            kf = Keyframe(img, paths[i], kp, des, curr_pose, pose_id)
-            keyframes.append(kf)
-            pose_graph.nodes.append(o3d.pipelines.registration.PoseGraphNode(kf.pose))
+            # Append it the the key frame list
+            current_keyframe = Keyframe(img, paths[i], key_point, descriptor, curr_pose, pose_id)
+            keyframes.append(current_keyframe)
+
+            # Add pose to pose graph
+            pose_graph.nodes.append(o3d.pipelines.registration.PoseGraphNode(current_keyframe.pose))
             T_last = keyframes[-2].pose
             T_curr = curr_pose
             T_ij = np.linalg.inv(T_last) @ T_curr
             information = np.identity(6)
             pose_graph.edges.append(
                 o3d.pipelines.registration.PoseGraphEdge(
-                    keyframes[-2].id, kf.id, T_ij, information, uncertain=False
+                    keyframes[-2].id, current_keyframe.id, T_ij, information, uncertain=False
                 )
             )
-            # Sparse triangulation between keyframes
-            matches_kf = match_descriptors(keyframes[-2].des, kf.des)
+
+            # Triangulation between keyframes
+            matches_kf = match_descriptors(keyframes[-2].descriptor, current_keyframe.descriptor)
             if len(matches_kf) >= 8:
-                pts1 = np.float32([keyframes[-2].kp[m.queryIdx].pt for m in matches_kf])
-                pts2 = np.float32([kf.kp[m.trainIdx].pt for m in matches_kf])
+                # Get point from both image
+                pts1 = np.float32([keyframes[-2].key_point[m.queryIdx].pt for m in matches_kf]) # m.queryIdx = ids from matched point in previous image
+                pts2 = np.float32([current_keyframe.key_point[m.trainIdx].pt for m in matches_kf]) # m.trainIdx = ids from matched point current image
+
+                # Compute Rotation and translation matrix for each image
+                # All matrices are inverted because cv2 triangulation function need to have them going from the image
+                # to the world coordinate frame
                 R1 = np.linalg.inv(keyframes[-2].pose)[:3,:3]
                 t1 = np.linalg.inv(keyframes[-2].pose)[:3,3].reshape(3,1)
-                R2 = np.linalg.inv(kf.pose)[:3,:3]
-                t2 = np.linalg.inv(kf.pose)[:3,3].reshape(3,1)
+                R2 = np.linalg.inv(current_keyframe.pose)[:3,:3]
+                t2 = np.linalg.inv(current_keyframe.pose)[:3,3].reshape(3,1)
+
+                # Triangulation : results are given in the absolute coordinate frame
                 pts3d = triangulate_pair(R1,t1,R2,t2,pts1,pts2,K)
+
+                # Find color for each point
                 for p in pts3d:
+                    # Find point in the image coordinate frame (in pixels)
                     uv,_ = cv2.projectPoints(p.reshape(1,3), np.zeros(3), np.zeros(3), K, None)
                     u,v = int(uv[0,0,0]), int(uv[0,0,1])
+
+                    # Find point color
                     h,w = img.shape[:2]
                     if 0<=v<h and 0<=u<w:
                         col = img[v,u]/255.0
                     else:
                         col = np.array([0.5,0.5,0.5])
+
+                    # Append 3D point and its color
                     all_points.append(p)
                     all_colors.append(col)
-            pose_id += 1
-            recent_kf_indices.append(kf.id)
-        prev_kp, prev_des, prev_img = kp, des, img
 
+
+            pose_id += 1
+            recent_kf_indices.append(current_keyframe.id)
+
+        prev_key_point, prev_descriptor, prev_img = key_point, descriptor, img
+
+    # Reformate datas before returning
     pts_np = np.vstack(all_points) if all_points else np.zeros((0,3))
     cols_np = np.vstack(all_colors) if all_colors else np.zeros((0,3))
     return keyframes, pts_np, cols_np, pose_graph
 
 # ---------------- POSE GRAPH OPTIMIZATION ----------------
 def optimize_pose_graph(pose_graph):
+    """ Optimization of the pose graph """
     option = o3d.pipelines.registration.GlobalOptimizationOption(max_correspondence_distance=0.1,
                                                                   edge_prune_threshold=0.25,
                                                                   reference_node=0)
@@ -212,7 +259,7 @@ def show_point_cloud(points, colors):
 if __name__ == "__main__":
     imgs, paths = load_images(dataset_dir)
     print(f"{len(imgs)} images loaded")
-    kfs, pts, cols, pg = monocular_slam(imgs, paths, K)
+    kfs, pts, cols, pg = slam_based_algorithm(imgs, paths, K)
     print("Keyframes:", len(kfs), "Points:", pts.shape)
     pg_opt = optimize_pose_graph(pg)
     show_point_cloud(pts, cols)
