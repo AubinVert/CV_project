@@ -86,7 +86,7 @@ def run_single_iteration(iteration_num):
         print(f"  Points:      {num_points}")
         print(f"  Convex Hull: {results['convex_hull_L']:.2f} L")
         print(f"  Cylinder:    {results['cylinder_L']:.2f} L")
-        print(f"  Average:     {results['average_L']:.2f} L ⭐")
+        print(f"  Average:     {results['average_L']:.2f} L")
         
         return iteration_result
         
@@ -179,37 +179,37 @@ def print_summary(stats):
     print("BENCHMARK SUMMARY")
     print("="*70)
     
-    print(f"\n📊 RUN STATISTICS")
+    print(f"\nRUN STATISTICS")
     print(f"   Total runs:       {stats['total_runs']}")
     print(f"   Successful:       {stats['successful_runs']} ({stats['success_rate']:.1f}%)")
     print(f"   Failed:           {stats['failed_runs']}")
     
-    print(f"\n📍 RECONSTRUCTION POINTS")
+    print(f"\nRECONSTRUCTION POINTS")
     print(f"   Mean points:      {stats['points_mean']:.0f} ± {stats['points_std']:.0f}")
     print(f"   Range:            [{stats['points_min']:.0f}, {stats['points_max']:.0f}]")
     
-    print(f"\n⏱️  EXECUTION TIME")
+    print(f"\nEXECUTION TIME")
     print(f"   Mean duration:    {stats['duration_mean']:.1f} ± {stats['duration_std']:.1f} seconds")
     
-    print(f"\n📦 CONVEX HULL VOLUME")
+    print(f"\nCONVEX HULL VOLUME")
     print(f"   Mean:             {stats['convex_hull_mean']:.2f} ± {stats['convex_hull_std']:.2f} L")
     print(f"   Median:           {stats['convex_hull_median']:.2f} L")
     print(f"   Range:            [{stats['convex_hull_min']:.2f}, {stats['convex_hull_max']:.2f}] L")
     print(f"   Variability:      {stats['convex_hull_std'] / stats['convex_hull_mean'] * 100:.1f}% CoV")
     
-    print(f"\n🛢️  CYLINDER VOLUME")
+    print(f"\nCYLINDER VOLUME")
     print(f"   Mean:             {stats['cylinder_mean']:.2f} ± {stats['cylinder_std']:.2f} L")
     print(f"   Median:           {stats['cylinder_median']:.2f} L")
     print(f"   Range:            [{stats['cylinder_min']:.2f}, {stats['cylinder_max']:.2f}] L")
     print(f"   Variability:      {stats['cylinder_std'] / stats['cylinder_mean'] * 100:.1f}% CoV")
     
-    print(f"\n⭐ AVERAGE VOLUME (RECOMMENDED)")
+    print(f"\nAVERAGE VOLUME")
     print(f"   Mean:             {stats['average_mean']:.2f} ± {stats['average_std']:.2f} L")
     print(f"   Median:           {stats['average_median']:.2f} L")
     print(f"   Range:            [{stats['average_min']:.2f}, {stats['average_max']:.2f}] L")
     print(f"   Variability:      {stats['average_std'] / stats['average_mean'] * 100:.1f}% CoV")
     
-    print(f"\n🎯 TARGET RANGE (42.0 - 84.5 L)")
+    print(f"\nTARGET RANGE (42.0 - 84.5 L)")
     print(f"   Runs in target:   {stats['in_target_count']}/{stats['successful_runs']} ({stats['in_target_rate']:.1f}%)")
     
     print("="*70 + "\n")
@@ -252,7 +252,7 @@ def plot_results(df_success, output_dir):
     ax3.boxplot([df_success['average_L']], tick_labels=['Average'])
     ax3.axhspan(42.0, 84.5, alpha=0.2, color='green', label='Target Range')
     ax3.set_ylabel('Volume (L)')
-    ax3.set_title('Average Volume Distribution ⭐')
+    ax3.set_title('Average Volume Distribution')
     ax3.legend()
     ax3.grid(True, alpha=0.3)
     
@@ -268,7 +268,7 @@ def plot_results(df_success, output_dir):
     ax.plot(df_success['iteration'], df_success['cylinder_L'], 
             marker='s', label='Cylinder', linewidth=2, markersize=8, alpha=0.7)
     ax.plot(df_success['iteration'], df_success['average_L'], 
-            marker='D', label='Average (Recommended) ⭐', linewidth=3, markersize=10, color='purple')
+            marker='D', label='Average', linewidth=3, markersize=10, color='purple')
     ax.axhspan(42.0, 84.5, alpha=0.2, color='green', label='Target Range')
     ax.set_xlabel('Iteration')
     ax.set_ylabel('Volume (L)')
@@ -305,14 +305,14 @@ def plot_results(df_success, output_dir):
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
-    # Average histogram (Recommended)
+    # Average histogram
     ax3.hist(df_success['average_L'], bins=15, alpha=0.7, color='purple', edgecolor='black')
     ax3.axvline(df_success['average_L'].mean(), color='red', linestyle='--', 
                 linewidth=2, label=f'Mean: {df_success["average_L"].mean():.2f} L')
     ax3.axvspan(42.0, 84.5, alpha=0.2, color='green', label='Target Range')
     ax3.set_xlabel('Volume (L)')
     ax3.set_ylabel('Frequency')
-    ax3.set_title('Average Volume Histogram ⭐')
+    ax3.set_title('Average Volume Histogram')
     ax3.legend()
     ax3.grid(True, alpha=0.3)
     
@@ -392,7 +392,7 @@ def save_results(results_list, stats, output_dir):
         f.write(f"  Range:            [{stats['cylinder_min']:.2f}, {stats['cylinder_max']:.2f}] L\n")
         f.write(f"  Variability:      {stats['cylinder_std'] / stats['cylinder_mean'] * 100:.1f}% CoV\n\n")
         
-        f.write(f"AVERAGE VOLUME (RECOMMENDED)\n")
+        f.write(f"AVERAGE VOLUME\n")
         f.write(f"  Mean:             {stats['average_mean']:.2f} ± {stats['average_std']:.2f} L\n")
         f.write(f"  Median:           {stats['average_median']:.2f} L\n")
         f.write(f"  Range:            [{stats['average_min']:.2f}, {stats['average_max']:.2f}] L\n")
