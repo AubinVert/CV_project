@@ -139,10 +139,10 @@ def run_segmentation(input_file=None, output_file=None, visualize=None):
     # )
     # print(f"After ROR: {len(pcd_clean.points)} pts")
     #
-    # o3d.io.write_point_cloud(str(output_file), pcd_clean)
-    # print(f"[Saved] {output_file}")
-
     pcd_clean = pcd_ext
+    o3d.io.write_point_cloud(str(output_file), pcd_clean)
+    print(f"[Saved] {output_file}")
+
     # Final visualization
     if visualize:
         print("[Visualization] Segmented extinguisher")

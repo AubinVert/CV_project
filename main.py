@@ -18,6 +18,7 @@ def run_full_pipeline():
     
     try:
         # Module 1: COLMAP Reconstruction
+        # IMPORTANT : Sometimes the reconstruction is giving us 0 points as output, so restart it if it is the case
         print("▶ Starting Module 1...")
         raw_cloud = reconstruction.run_reconstruction()
         
@@ -38,8 +39,9 @@ def run_full_pipeline():
         print("PIPELINE COMPLETED SUCCESSFULLY")
         print("="*70)
         print(f"\nVOLUME ESTIMATION RESULTS:")
-        print(f"   • Convex Hull:        {results['convex_hull_L']:.1f} L")
-        print(f"   • PCA-aligned Cylinder: {results['cylinder_L']:.1f} L ⭐ (recommended)")
+        print(f"   • Convex Hull:          {results['convex_hull_L']:.1f} L")
+        print(f"   • PCA-aligned Cylinder: {results['cylinder_L']:.1f} L")
+        print(f"   • Average (Recommended): {results['average_L']:.1f} L  ⭐")
         print(f"\nTarget Range: 42.0 - 84.5 L")
         print(f"   Status: {'✓ WITHIN TARGET' if results['in_target'] else '✗ OUTSIDE TARGET'}")
         print("="*70 + "\n")

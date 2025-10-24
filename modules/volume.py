@@ -41,32 +41,13 @@ def run_volume_estimation(input_file=None, visualize=None):
     print(f"Loaded: {len(pcd_clean.points)} points")
     
     # ==========================================================
-    # Volume estimation (Convex Hull + Cylinder)
-    # ==========================================================
-    print("\n=== Volume Estimation ===")
-    pts = np.asarray(pcd_clean.points)
-    mins, maxs = pts.min(axis=0), pts.max(axis=0)
-    dims = maxs - mins
-    print(f"Bounding box (X,Y,Z): {dims}")
-    
-    # Calculate height and diameter
-    height_raw = np.max(dims)
-    height_adjusted = height_raw - config.CYLINDER_HEIGHT_MARGIN_TOP - config.CYLINDER_HEIGHT_MARGIN_BOTTOM
-    
-    sorted_dims = np.sort(dims)
-    diameter_raw = np.mean(sorted_dims[:2])
-    radius_raw = diameter_raw / 2.0
-    radius_adjusted = radius_raw * config.CYLINDER_RADIUS_FACTOR
-    
-    print(f"Height (raw): {height_raw:.3f} m")
-    print(f"Height (adjusted): {height_adjusted:.3f} m")
-    print(f"Radius (raw): {radius_raw:.3f} m")
-    print(f"Radius (adjusted x{config.CYLINDER_RADIUS_FACTOR}): {radius_adjusted:.3f} m")
-    
+    # Volume estimation (Convex Hull + PCA Cylinder)
+    # ==========================================================   
     # ==========================================================
     # PCA: Find principal axis for proper alignment
     # ==========================================================
     print("\n=== PCA Alignment ===")
+    pts = np.asarray(pcd_clean.points)
     centroid = pts.mean(axis=0)
     pts_centered = pts - centroid
     
@@ -193,6 +174,12 @@ def run_volume_estimation(input_file=None, visualize=None):
             height=config.WINDOW_HEIGHT
         )
     
+    # ==========================================================
+    # Average volume (recommended final estimate)
+    # ==========================================================
+    volume_average_L = (volume_liters_hull + volume_liters_cylinder) / 2.0
+    volume_average_m3 = volume_average_L / 1000.0
+    
     print("\n[✓] Module 4 complete\n")
     
     return {
@@ -200,7 +187,9 @@ def run_volume_estimation(input_file=None, visualize=None):
         'convex_hull_L': volume_liters_hull,
         'cylinder_m3': vol_cylinder_adjusted,
         'cylinder_L': volume_liters_cylinder,
-        'in_target': config.TARGET_MIN <= volume_liters_cylinder <= config.TARGET_MAX
+        'average_m3': volume_average_m3,
+        'average_L': volume_average_L,
+        'in_target': config.TARGET_MIN <= volume_average_L <= config.TARGET_MAX
     }
 
 if __name__ == "__main__":
