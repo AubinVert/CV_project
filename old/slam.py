@@ -134,6 +134,7 @@ def slam_based_algorithm(imgs, paths, K):
     #       - Add frame to key frames list
     #       - Add pose to the pose graph
     #       - Compute triangulation
+
     for i in range(1, n):
         img = imgs[i]
 
@@ -190,7 +191,7 @@ def slam_based_algorithm(imgs, paths, K):
                 )
             )
 
-            # Triangulation between keyframes
+            # Match descriptors from previous and current keyframe
             matches_kf = match_descriptors(keyframes[-2].descriptor, current_keyframe.descriptor)
             if len(matches_kf) >= 8:
                 # Get point from both image
@@ -231,7 +232,7 @@ def slam_based_algorithm(imgs, paths, K):
 
         prev_key_point, prev_descriptor, prev_img = key_point, descriptor, img
 
-    # Reformate datas before returning
+    # Reformat datas to numpy vertical stack vector before returning
     pts_np = np.vstack(all_points) if all_points else np.zeros((0,3))
     cols_np = np.vstack(all_colors) if all_colors else np.zeros((0,3))
     return keyframes, pts_np, cols_np, pose_graph
